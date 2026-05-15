@@ -521,7 +521,7 @@ function getPrevSets(oefeningId){
   const prev=Object.entries(state.sessions)
     .filter(([k])=>k.endsWith("_"+state.dag)&&k!==key)
     .sort(([a],[b])=>b.localeCompare(a))[0];
-  return prev?.(prev[1].sets||{})[oefeningId]||[]||[];
+  return prev ? ((prev[1].sets||{})[oefeningId]||[]) : [];
 }
 
 // Actions
