@@ -536,7 +536,7 @@ function updateSet(oid,si,field,val){
   if(!state.session[oid][si])state.session[oid][si]={};
   state.session[oid][si][field]=val;
   // update class without full re-render
-  const inputs=document.querySelectorAll(\`.si\`);
+  const inputs=document.querySelectorAll('.si');
 }
 
 function copyS1(oid,sets){
