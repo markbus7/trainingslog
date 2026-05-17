@@ -360,32 +360,46 @@ function renderProgressie(dag,acc){
   }).join("")}`;
 }
 
+function calcNavyVet(taille, nek, lengte){
+  if(!taille||!nek||!lengte)return null;
+  const val = 495 / (1.0324 - 0.19077 * Math.log10(taille - nek) + 0.15456 * Math.log10(lengte)) - 450;
+  return Math.round(val*10)/10;
+}
+
 function renderGewicht(acc){
+  // Chart op gewicht
   const vals=[...state.gewicht].reverse().slice(-12);
   let chart="";
   if(vals.length>=2){
-    const min=Math.min(...vals.map(v=>v.kg))-1;
-    const max=Math.max(...vals.map(v=>v.kg))+1;
-    const range=max-min;
-    const W=300,H=80;
-    const pts=vals.map((v,i)=>`${(i/(vals.length-1))*W},${H-((v.kg-min)/range)*H}`).join(" ");
-    const diff=(vals[vals.length-1].kg-vals[0].kg).toFixed(1);
-    const dc=diff<0?"#2d6a4f":diff>0?"#e85d04":"#555";
-    chart=`<div class="trend-box">
-      <div class="trend-header">
-        <span class="trend-label">Trend</span>
-        <span style="font-size:13px;color:${dc}">${diff>0?"+":""}${diff} kg</span>
-      </div>
-      <svg class="svg-chart" viewBox="0 0 ${W} ${H}">
-        <polyline points="${pts}" fill="none" stroke="#e85d04" stroke-width="1.5" stroke-linejoin="round"/>
-        ${vals.map((v,i)=>{const x=(i/(vals.length-1))*W,y=H-((v.kg-min)/range)*H;return`<circle cx="${x}" cy="${y}" r="3" fill="#e85d04"/>`;}).join("")}
-      </svg>
-    </div>`;
+    const kgs=vals.map(v=>v.kg).filter(Boolean);
+    if(kgs.length>=2){
+      const min=Math.min(...kgs)-1, max=Math.max(...kgs)+1, range=max-min;
+      const W=300,H=80;
+      const pts=vals.filter(v=>v.kg).map((v,i)=>`${(i/(vals.length-1))*W},${H-((v.kg-min)/range)*H}`).join(" ");
+      const diff=(vals[vals.length-1].kg-vals[0].kg).toFixed(1);
+      const dc=diff<0?"#2d6a4f":diff>0?"#e85d04":"#555";
+      chart=`<div class="trend-box">
+        <div class="trend-header">
+          <span class="trend-label">Gewicht trend</span>
+          <span style="font-size:13px;color:${dc}">${diff>0?"+":""}${diff} kg</span>
+        </div>
+        <svg class="svg-chart" viewBox="0 0 ${W} ${H}">
+          <polyline points="${pts}" fill="none" stroke="#e85d04" stroke-width="1.5" stroke-linejoin="round"/>
+          ${vals.filter(v=>v.kg).map((v,i)=>{const x=(i/(vals.length-1))*W,y=H-((v.kg-min)/range)*H;return`<circle cx="${x}" cy="${y}" r="3" fill="#e85d04"/>`;}).join("")}
+        </svg>
+      </div>`;
+    }
   }
 
   const syncOk=state.syncMode==="drive";
+
+  // Preview Navy berekening
+  const taille=document.getElementById("navy-taille")?parseFloat(document.getElementById("navy-taille").value)||0:0;
+  const nek=document.getElementById("navy-nek")?parseFloat(document.getElementById("navy-nek").value)||0:0;
+  const navyResult=taille&&nek?calcNavyVet(taille,nek,180):null;
+
   return `
-  <div style="font-size:11px;color:#555;letter-spacing:.1em;text-transform:uppercase;margin-bottom:16px">Lichaamsgewicht bijhouden</div>
+  <div style="font-size:11px;color:#555;letter-spacing:.1em;text-transform:uppercase;margin-bottom:16px">Lichaamssamenstelling</div>
 
   <div class="webhook-section">
     <div style="font-size:11px;color:${syncOk?"#2d6a4f":"#664400"}">${syncOk?"● Google Drive sync actief":"● Geen sync — stel webhook in voor cross-device opslag"}</div>
@@ -401,22 +415,95 @@ function renderGewicht(acc){
     `:`<button style="background:none;border:1px solid #2a2a2a;color:#555;font-family:inherit;font-size:10px;padding:4px 10px;border-radius:2px;cursor:pointer;margin-top:10px" onclick="disconnectWebhook()">Verbreken</button>`}
   </div>
 
-  <div class="weight-input-row">
-    <input type="number" step="0.1" class="weight-input" id="gw-input" placeholder="kg (bv. 91.3)">
-    <button class="btn-save" style="background:#e85d04;color:#0f0f0f;width:auto;padding:8px 16px" onclick="saveGewicht()">Opslaan</button>
+  <!-- Datum -->
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+    <span style="font-size:11px;color:#555;letter-spacing:.1em;text-transform:uppercase">Datum</span>
+    <input type="date" id="gw-datum" class="date-input" value="${today()}">
   </div>
+
+  <!-- Basic Fit stats -->
+  <div style="font-size:11px;color:${acc};letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px">Basic Fit meting</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
+    <div>
+      <div style="font-size:10px;color:#555;margin-bottom:4px">Gewicht (kg)</div>
+      <input type="number" step="0.1" class="si" style="width:100%" id="gw-kg" placeholder="91.3">
+    </div>
+    <div>
+      <div style="font-size:10px;color:#555;margin-bottom:4px">Vetmassa (%)</div>
+      <input type="number" step="0.1" class="si" style="width:100%" id="gw-vet" placeholder="28.0">
+    </div>
+    <div>
+      <div style="font-size:10px;color:#555;margin-bottom:4px">Spiermassa (%)</div>
+      <input type="number" step="0.1" class="si" style="width:100%" id="gw-spier" placeholder="68.0">
+    </div>
+    <div>
+      <div style="font-size:10px;color:#555;margin-bottom:4px">Botmassa (%)</div>
+      <input type="number" step="0.1" class="si" style="width:100%" id="gw-bot" placeholder="4.0">
+    </div>
+    <div>
+      <div style="font-size:10px;color:#555;margin-bottom:4px">Lichaamswater (%)</div>
+      <input type="number" step="0.1" class="si" style="width:100%" id="gw-water" placeholder="50.3">
+    </div>
+  </div>
+
+  <!-- Omtrekken + Navy berekening -->
+  <div style="font-size:11px;color:${acc};letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px">Omtrekken & vetberekening</div>
+  <div style="font-size:10px;color:#555;margin-bottom:12px;line-height:1.7">US Navy methode — meet 's ochtends nuchter, op het smalste/breedste punt</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+    <div>
+      <div style="font-size:10px;color:#555;margin-bottom:4px">Taille (cm)</div>
+      <input type="number" step="0.5" class="si" style="width:100%" id="navy-taille" placeholder="90" oninput="render()">
+    </div>
+    <div>
+      <div style="font-size:10px;color:#555;margin-bottom:4px">Nek (cm)</div>
+      <input type="number" step="0.5" class="si" style="width:100%" id="navy-nek" placeholder="40" oninput="render()">
+    </div>
+    <div>
+      <div style="font-size:10px;color:#555;margin-bottom:4px">Heupen (cm) <span style="color:#383838">(opt.)</span></div>
+      <input type="number" step="0.5" class="si" style="width:100%" id="gw-heupen" placeholder="">
+    </div>
+    <div>
+      <div style="font-size:10px;color:#555;margin-bottom:4px">Bovenarm (cm) <span style="color:#383838">(opt.)</span></div>
+      <input type="number" step="0.5" class="si" style="width:100%" id="gw-bovenarm" placeholder="">
+    </div>
+  </div>
+
+  ${navyResult!==null?`
+  <div style="padding:12px;background:#141414;border-radius:2px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">
+    <span style="font-size:11px;color:#555">Berekend vetpercentage (Navy)</span>
+    <span style="font-size:16px;color:${acc};font-weight:500">${navyResult}%</span>
+  </div>`:""}
+
+  <button class="btn-save" style="background:${acc};color:#0f0f0f;margin-bottom:28px" onclick="saveGewicht()">Meting opslaan</button>
 
   ${chart}
 
   ${state.gewicht.length>0?`
     <div class="weight-history-label">Geschiedenis</div>
-    ${state.gewicht.map(({datum,kg})=>`
-      <div class="weight-row">
-        <span class="weight-row-date">${fmtDate(datum)}</span>
-        <span class="weight-row-val">${kg} kg</span>
+    ${state.gewicht.map(entry=>`
+      <div style="padding:12px 0;border-bottom:1px solid #1a1a1a">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:11px;color:#555">${fmtDate(entry.datum)}</span>
+          <span style="font-size:13px;color:#e8e6e0;font-weight:500">${entry.kg?entry.kg+" kg":""}</span>
+        </div>
+        ${entry.vet||entry.spier||entry.bot||entry.water?`
+        <div style="display:flex;gap:16px;flex-wrap:wrap">
+          ${entry.vet?`<span style="font-size:11px;color:#888">Vet: <span style="color:${acc}">${entry.vet}%</span></span>`:""}
+          ${entry.spier?`<span style="font-size:11px;color:#888">Spier: <span style="color:${acc}">${entry.spier}%</span></span>`:""}
+          ${entry.bot?`<span style="font-size:11px;color:#888">Bot: <span style="color:${acc}">${entry.bot}%</span></span>`:""}
+          ${entry.water?`<span style="font-size:11px;color:#888">Water: <span style="color:${acc}">${entry.water}%</span></span>`:""}
+        </div>`:""}
+        ${entry.taille||entry.nek||entry.navyVet?`
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:4px">
+          ${entry.taille?`<span style="font-size:11px;color:#888">Taille: <span style="color:#777">${entry.taille}cm</span></span>`:""}
+          ${entry.nek?`<span style="font-size:11px;color:#888">Nek: <span style="color:#777">${entry.nek}cm</span></span>`:""}
+          ${entry.heupen?`<span style="font-size:11px;color:#888">Heupen: <span style="color:#777">${entry.heupen}cm</span></span>`:""}
+          ${entry.bovenarm?`<span style="font-size:11px;color:#888">Bovenarm: <span style="color:#777">${entry.bovenarm}cm</span></span>`:""}
+          ${entry.navyVet?`<span style="font-size:11px;color:#888">Navy vet: <span style="color:${acc}">${entry.navyVet}%</span></span>`:""}
+        </div>`:""}
       </div>
     `).join("")}
-  `:`<div style="padding:24px;text-align:center;color:#333;font-size:12px">Nog geen gewicht gelogd.</div>`}`;
+  `:`<div style="padding:24px;text-align:center;color:#333;font-size:12px">Nog geen metingen gelogd.</div>`}`;
 }
 
 function getPrevSets(oefeningId){
@@ -486,10 +573,22 @@ async function clearDay(){
 }
 
 async function saveGewicht(){
-  const input=document.getElementById("gw-input");
-  if(!input||!input.value)return;
-  const entry={datum:today(),kg:parseFloat(input.value)};
-  const updated=[...state.gewicht.filter(g=>g.datum!==today()),entry].sort((a,b)=>b.datum.localeCompare(a.datum));
+  const datum=document.getElementById("gw-datum")?.value||today();
+  const kg=parseFloat(document.getElementById("gw-kg")?.value)||null;
+  const vet=parseFloat(document.getElementById("gw-vet")?.value)||null;
+  const spier=parseFloat(document.getElementById("gw-spier")?.value)||null;
+  const bot=parseFloat(document.getElementById("gw-bot")?.value)||null;
+  const water=parseFloat(document.getElementById("gw-water")?.value)||null;
+  const taille=parseFloat(document.getElementById("navy-taille")?.value)||null;
+  const nek=parseFloat(document.getElementById("navy-nek")?.value)||null;
+  const heupen=parseFloat(document.getElementById("gw-heupen")?.value)||null;
+  const bovenarm=parseFloat(document.getElementById("gw-bovenarm")?.value)||null;
+  const navyVet=taille&&nek?calcNavyVet(taille,nek,180):null;
+  if(!kg&&!vet&&!taille)return;
+  const entry={datum,kg,vet,spier,bot,water,taille,nek,heupen,bovenarm,navyVet};
+  // Remove null fields
+  Object.keys(entry).forEach(k=>entry[k]===null&&delete entry[k]);
+  const updated=[...state.gewicht.filter(g=>g.datum!==datum),entry].sort((a,b)=>b.datum.localeCompare(a.datum));
   state.gewicht=updated;
   await persist(state.sessions,updated);
   render();
